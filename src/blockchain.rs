@@ -2,6 +2,7 @@ use sled::Db;
 
 use crate::block::Block;
 use crate::pow::ProofOfWork;
+use crate::transaction::Transaction;
 
 
 const BLOCKS_TREE: &str = "blocks_tree";
@@ -25,7 +26,10 @@ impl Blockchain {
 
         if last_block_hash == String::from("0").into_bytes() {
             let blocknumber: u128 = 1;
-            let transactions = String::from("This is genesis block");
+            let alice = String::from("Alice");
+            let bob = String::from("Bob");
+            let tx = Transaction::new_coinbase_tx(vec![alice, bob]);
+            let transactions = vec![tx];
             let previous_hash = vec![];
 
             let genesis_block = Block::create_block(blocknumber, transactions, previous_hash);
@@ -46,7 +50,7 @@ impl Blockchain {
         }
     }
 
-    pub fn add_block(&mut self, transactions: String) {
+    pub fn add_block(&mut self, transactions: Vec<Transaction>) {
         let blocks_tree = self.db.open_tree(BLOCKS_TREE).unwrap();
         let last_block_hash = blocks_tree.get(LAST_BLOCK_HASH).unwrap().unwrap().to_vec();
         let last_block = blocks_tree.get(last_block_hash).unwrap().unwrap().to_vec();

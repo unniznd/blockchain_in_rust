@@ -4,7 +4,7 @@ use crypto::{digest::Digest, sha2::Sha256};
 const SUBSIDY: i32 = 10;
 
 
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug)]
 struct TxInput{
     txid: Vec<u8>,
     vout: u128,
@@ -23,7 +23,7 @@ impl TxInput {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct TxOutput{
     value: i32,
     public_key: String
@@ -39,7 +39,7 @@ impl TxOutput{
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Transaction{
     pub id: Vec<u8>,
     tx_input: Vec<TxInput>,
@@ -47,14 +47,19 @@ pub struct Transaction{
 }
 
 impl Transaction {
-    pub fn new_coinbase_tx(to: String) -> Transaction {
-        let tx_output = TxOutput::new(SUBSIDY, to);
+    pub fn new_coinbase_tx(to: Vec<String>) -> Transaction {
+
+        let mut tx_output = Vec::new();
+        for addr in to.iter(){
+            let tx = TxOutput::new(SUBSIDY, addr.to_string());
+            tx_output.push(tx);
+        }
         let tx_input = TxInput::default();
 
         let mut tx = Transaction{
             id: vec![],
             tx_input: vec![tx_input],
-            tx_output: vec![tx_output]
+            tx_output
         };
 
         tx.id = tx.hash();
