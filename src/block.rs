@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use crypto::{digest::Digest, sha2::Sha256};
+use hex::encode;
 use serde::{Deserialize, Serialize};
 use crate::transaction::Transaction;
 
@@ -47,8 +48,15 @@ impl Block {
     }
 
     pub fn hash_transaction(&self) -> Vec<u8>{
+        let mut tx_string = String::new();
+        for tx in self.transactions.iter(){
+            let tx_serialized = tx.serialize();
+            tx_string.push_str(&encode(tx_serialized));
+
+        }
+
         let mut hasher = Sha256::new();
-        hasher.input_str("12");
+        hasher.input_str(&tx_string);
 
         let mut result = vec![0; hasher.output_bytes()]; 
         hasher.result(&mut result);
