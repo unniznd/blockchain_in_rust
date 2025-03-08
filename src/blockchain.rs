@@ -10,8 +10,8 @@ const LAST_BLOCK_HASH: &str = "last_block_hash";
 
 #[derive(Debug)]
 pub struct Blockchain {
-    db: Db,
-    last_block_hash: String,
+    pub db: Db,
+    pub last_block_hash: String,
 }
 
 impl Blockchain {
@@ -86,7 +86,11 @@ impl Blockchain {
         blocks
     }
 
-    // pub fn get_last_block(&self) -> &Block {
-    //     self.blocks.last().expect("Blockchain should have at least one block")
-    // }
+    pub fn get_block(&self, hash: String) -> Option<Block> {
+        let blocks_tree = self.db.open_tree(BLOCKS_TREE).unwrap();
+        match blocks_tree.get(hash) {
+            Ok(Some(block)) => Some(Block::deserialize(&block.to_vec())),
+            _ => None,
+        }
+    }
 }
