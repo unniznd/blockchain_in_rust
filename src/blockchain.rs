@@ -8,7 +8,6 @@ const BLOCKS_TREE: &str = "blocks_tree";
 const LAST_BLOCK_HASH: &str = "last_block_hash";
 
 
-#[derive(Debug)]
 pub struct Blockchain {
     pub db: Db,
     pub last_block_hash: String,

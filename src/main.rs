@@ -1,6 +1,7 @@
 mod blockchain;
 mod block;
 mod pow;
+mod transaction;
 use crate::blockchain::Blockchain;
 
 fn main() {
