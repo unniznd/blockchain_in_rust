@@ -85,12 +85,4 @@ impl Blockchain {
         }
         blocks
     }
-
-    pub fn get_block(&self, hash: String) -> Option<Block> {
-        let blocks_tree = self.db.open_tree(BLOCKS_TREE).unwrap();
-        match blocks_tree.get(hash) {
-            Ok(Some(block)) => Some(Block::deserialize(&block.to_vec())),
-            _ => None,
-        }
-    }
 }
