@@ -11,8 +11,14 @@ fn main() {
    
     // blockchain.add_block("Second block".to_string());
 
-    let blocks = blockchain.get_all_blocks();
-    for i in (0..blocks.len()).rev() {
-        println!("{:?}", blocks[i]);
+    let mut iterator = blockchain.iterator();
+    loop {
+        let current_block = iterator.next();
+        if current_block.is_none() {
+            break;
+        }
+
+        println!("{:?}", current_block.unwrap());
+
     }
 }

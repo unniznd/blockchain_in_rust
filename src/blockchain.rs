@@ -1,7 +1,5 @@
 use sled::Db;
-
 use crate::block::Block;
-use crate::pow::ProofOfWork;
 use crate::transaction::Transaction;
 
 
@@ -32,15 +30,14 @@ impl Blockchain {
             let transactions = vec![tx];
             let previous_hash = vec![];
 
-            let genesis_block = Block::create_block(blocknumber, transactions, previous_hash);
-            let pow = ProofOfWork::new(genesis_block, 2);
-            let block = ProofOfWork::run(pow);
-            blocks_tree.insert(block.hash.clone(), block.serialize()).unwrap();
-            blocks_tree.insert(LAST_BLOCK_HASH, block.hash.clone()).unwrap();
+            let block = Block::create_block(blocknumber, transactions, previous_hash);
+            
+            blocks_tree.insert(block.get_block_hash(), block.serialize()).unwrap();
+            blocks_tree.insert(LAST_BLOCK_HASH, block.get_block_hash()).unwrap();
 
             Blockchain {
                 db,
-                last_block_hash: block.hash,
+                last_block_hash: block.get_block_hash(),
             }
         } else {
             Blockchain {
@@ -55,8 +52,8 @@ impl Blockchain {
         let last_block_hash = blocks_tree.get(LAST_BLOCK_HASH).unwrap().unwrap().to_vec();
         let last_block = blocks_tree.get(last_block_hash).unwrap().unwrap().to_vec();
         let last_block = Block::deserialize(&last_block);
-        let blocknumber = last_block.blocknumber + 1;
-        let previous_hash = last_block.hash; 
+        let blocknumber = last_block.get_blocknumer() + 1;
+        let previous_hash = last_block.get_block_hash(); 
 
         let block = Block::create_block(
             blocknumber, 
@@ -64,28 +61,41 @@ impl Blockchain {
             previous_hash
         );
 
-        let pow = ProofOfWork::new(block, 2);
-        let block = ProofOfWork::run(pow);
+    
+        blocks_tree.insert(block.get_block_hash(), block.serialize()).unwrap();
+        blocks_tree.insert(LAST_BLOCK_HASH, block.get_block_hash()).unwrap();
 
-        blocks_tree.insert(block.hash.clone(), block.serialize()).unwrap();
-        blocks_tree.insert(LAST_BLOCK_HASH, block.hash.clone()).unwrap();
-
-        self.last_block_hash = block.hash;
+        self.last_block_hash = block.get_block_hash();
     }
 
-    pub fn get_all_blocks(&self) -> Vec<Block> {
-        let blocks_tree = self.db.open_tree(BLOCKS_TREE).unwrap();
-        let mut blocks = Vec::new();
-        let mut current_block_hash = self.last_block_hash.clone();
-        for _ in 0..blocks_tree.len() {
-            if current_block_hash == vec![]{
-                break;
-            }
-            let current_block = blocks_tree.get(current_block_hash).unwrap().unwrap().to_vec();
-            let current_block = Block::deserialize(&current_block);
-            blocks.push(current_block.clone());
-            current_block_hash = current_block.previous_hash;
+    pub fn iterator(&self) -> BlockchainIterator{
+        BlockchainIterator::new(self.db.clone(), self.last_block_hash.clone())
+    }
+}
+
+
+pub struct BlockchainIterator{
+    db: Db,
+    current_hash: Vec<u8>
+}
+
+impl BlockchainIterator {
+    pub fn new(db: Db, current_hash: Vec<u8>) -> BlockchainIterator {
+        BlockchainIterator{
+            db,
+            current_hash
         }
-        blocks
     }
+
+    pub fn next(&mut self) -> Option<Block>{
+        let blocks_tree = self.db.open_tree(BLOCKS_TREE).unwrap();
+        let data = blocks_tree.get(self.current_hash.clone()).unwrap();
+        if data.is_none() {
+            return None;
+        }
+        let block = Block::deserialize(data.unwrap().to_vec().as_slice());
+        self.current_hash = block.get_previous_hash();
+        return Some(block);
+    }
+    
 }

@@ -11,26 +11,31 @@ impl ProofOfWork {
         ProofOfWork { block, target }
     }
 
-    pub fn run(mut self) -> Block {
+    fn prepare_data(&self, nonce: u128) -> Vec<u8> {
+        let previous_hash = self.block.get_previous_hash();
+        let tx_hash = self.block.hash_transaction();
+        let timestamp = self.block.get_timestamp();
+        let blocknumber = self.block.get_blocknumer();
+        let mut data_bytes = vec![];
+        data_bytes.extend(blocknumber.to_be_bytes());
+        data_bytes.extend(timestamp.to_be_bytes());
+        data_bytes.extend(previous_hash);
+        data_bytes.extend(tx_hash);
+        data_bytes.extend(nonce.to_be_bytes());
+        data_bytes
+    }
+
+    pub fn run(self) -> (u128, Vec<u8>) {
         let mut nonce = 0;
         while nonce < u128::MAX {
-            self.block.nonce = nonce;
-            let block_serialized = format!(
-                "{}{}{}{}{}",
-                self.block.blocknumber,
-                self.block.timestamp,
-                encode(self.block.hash_transaction()),
-                encode(self.block.previous_hash.clone()),
-                self.block.nonce
-            );
+            let data = self.prepare_data(nonce);
             let mut hasher = Sha256::new();
-            hasher.input_str(&block_serialized);
+            hasher.input(&data);
             let mut result = vec![0; hasher.output_bytes()]; 
             hasher.result(&mut result);
             let hash = encode(&result);
             if hash.starts_with(&"0".repeat(self.target as usize)) {
-                self.block.hash = result;
-                return self.block; 
+                return (nonce, result);
             }
             nonce += 1;
         }

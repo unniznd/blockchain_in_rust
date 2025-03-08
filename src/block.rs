@@ -3,16 +3,16 @@ use crypto::{digest::Digest, sha2::Sha256};
 use hex::encode;
 use serde::{Deserialize, Serialize};
 use crate::transaction::Transaction;
-
+use crate::pow::ProofOfWork;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Block {
-    pub blocknumber: u128,
-    pub timestamp: u128,
-    pub transactions: Vec<Transaction>,
-    pub previous_hash: Vec<u8>,
-    pub hash: Vec<u8>,
-    pub nonce: u128,
+    blocknumber: u128,
+    timestamp: u128,
+    transactions: Vec<Transaction>,
+    previous_hash: Vec<u8>,
+    hash: Vec<u8>,
+    nonce: u128,
 }
 
 impl Block {
@@ -27,7 +27,7 @@ impl Block {
             .expect("Time went backwards");
         let timestamp = since_the_epoch.as_millis();
 
-        let block = Block {
+        let mut block = Block {
             blocknumber,
             timestamp,
             transactions,
@@ -35,6 +35,11 @@ impl Block {
             hash: vec![],
             nonce: 0,
         };
+
+        let pow = ProofOfWork::new(block.clone(), 2);
+        let (nonce, hash) = ProofOfWork::run(pow);
+        block.nonce = nonce;
+        block.hash = hash;
 
         block
     }
@@ -62,5 +67,21 @@ impl Block {
         hasher.result(&mut result);
 
         result
+    }
+
+    pub fn get_blocknumer(&self) -> u128{
+        self.blocknumber
+    }
+
+    pub fn get_previous_hash(&self) -> Vec<u8> {
+        self.previous_hash.clone()
+    }
+
+    pub fn get_block_hash(&self) -> Vec<u8> {
+        self.hash.clone()
+    }
+    
+    pub fn get_timestamp(&self) -> u128 {
+        self.timestamp
     }
 }
