@@ -1,6 +1,6 @@
 use crate::block::Block;
 use crypto::{digest::Digest, sha2::Sha256};
-
+use hex::encode;
 pub struct ProofOfWork {
     pub block: Block,
     pub target: u128,
@@ -19,15 +19,17 @@ impl ProofOfWork {
                 "{}{}{}{}{}",
                 self.block.blocknumber,
                 self.block.timestamp,
-                self.block.hash_transaction(),
-                self.block.previous_hash,
+                encode(self.block.hash_transaction()),
+                encode(self.block.previous_hash.clone()),
                 self.block.nonce
             );
             let mut hasher = Sha256::new();
             hasher.input_str(&block_serialized);
-            let hash = hasher.result_str();
+            let mut result = vec![0; hasher.output_bytes()]; 
+            hasher.result(&mut result);
+            let hash = encode(&result);
             if hash.starts_with(&"0".repeat(self.target as usize)) {
-                self.block.hash = hash;
+                self.block.hash = result;
                 return self.block; 
             }
             nonce += 1;

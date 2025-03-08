@@ -10,7 +10,7 @@ const LAST_BLOCK_HASH: &str = "last_block_hash";
 
 pub struct Blockchain {
     pub db: Db,
-    pub last_block_hash: String,
+    pub last_block_hash: Vec<u8>,
 }
 
 impl Blockchain {
@@ -26,13 +26,13 @@ impl Blockchain {
         if last_block_hash == String::from("0").into_bytes() {
             let blocknumber: u128 = 1;
             let transactions = String::from("This is genesis block");
-            let previous_hash = String::new();
+            let previous_hash = vec![];
 
             let genesis_block = Block::create_block(blocknumber, transactions, previous_hash);
             let pow = ProofOfWork::new(genesis_block, 2);
             let block = ProofOfWork::run(pow);
             blocks_tree.insert(block.hash.clone(), block.serialize()).unwrap();
-            blocks_tree.insert(LAST_BLOCK_HASH, block.hash.clone().as_bytes()).unwrap();
+            blocks_tree.insert(LAST_BLOCK_HASH, block.hash.clone()).unwrap();
 
             Blockchain {
                 db,
@@ -41,7 +41,7 @@ impl Blockchain {
         } else {
             Blockchain {
                 db,
-                last_block_hash: String::from_utf8(last_block_hash).unwrap(),
+                last_block_hash,
             }
         }
     }
@@ -57,14 +57,14 @@ impl Blockchain {
         let block = Block::create_block(
             blocknumber, 
             transactions, 
-            previous_hash.to_string()
+            previous_hash
         );
 
         let pow = ProofOfWork::new(block, 2);
         let block = ProofOfWork::run(pow);
 
         blocks_tree.insert(block.hash.clone(), block.serialize()).unwrap();
-        blocks_tree.insert(LAST_BLOCK_HASH, block.hash.clone().as_bytes()).unwrap();
+        blocks_tree.insert(LAST_BLOCK_HASH, block.hash.clone()).unwrap();
 
         self.last_block_hash = block.hash;
     }
@@ -74,7 +74,7 @@ impl Blockchain {
         let mut blocks = Vec::new();
         let mut current_block_hash = self.last_block_hash.clone();
         for _ in 0..blocks_tree.len() {
-            if current_block_hash == String::new(){
+            if current_block_hash == vec![]{
                 break;
             }
             let current_block = blocks_tree.get(current_block_hash).unwrap().unwrap().to_vec();
