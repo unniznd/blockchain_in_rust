@@ -10,16 +10,16 @@ pub struct TxInput{
     txid: Vec<u8>,
     vout: u128,
     signature: Vec<u8>,
-    public_key: Vec<u8>
+    public_key: String
 }
 
 impl TxInput {
-    pub fn new(txid:Vec<u8> , vout:u128) -> TxInput {
+    pub fn new(txid:Vec<u8> , vout:u128, public_key:String) -> TxInput {
         TxInput{
             txid,
             vout,
             signature: vec![],
-            public_key: vec![]
+            public_key
         }
     }
     pub fn get_txid(&self) -> Vec<u8> {
@@ -30,12 +30,12 @@ impl TxInput {
         self.vout
     }
 
-    pub fn get_public_key(&self) -> Vec<u8>{
+    pub fn get_public_key(&self) -> String {
         self.public_key.clone()
     }
 
     pub fn is_used_by(&self, public_key_hash: &String) -> bool {
-        encode(self.public_key.clone()) == *public_key_hash
+        self.public_key == *public_key_hash
     }
 }
 

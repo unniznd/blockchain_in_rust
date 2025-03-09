@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-
-use hex::encode;
 use sled::Db;
 use crate::block::Block;
 use crate::transaction::Transaction;
@@ -31,7 +29,7 @@ impl Blockchain {
             let blocknumber: u128 = 1;
             let alice = String::from("Alice");
             let bob = String::from("Bob");
-            let tx = Transaction::new_coinbase_tx(vec![alice, bob]);
+            let tx = Transaction::new_coinbase_tx(vec![alice, bob.clone(), bob]);
             let transactions = vec![tx];
             let previous_hash = vec![];
 
@@ -75,6 +73,46 @@ impl Blockchain {
 
     pub fn iterator(&self) -> BlockchainIterator{
         BlockchainIterator::new(self.db.clone(), self.last_block_hash.clone())
+    }
+
+    pub fn find_utxo(&self, public_key_hash: String) -> HashMap<Vec<u8>, Vec<TxOutput>> {
+        let mut unspend_txo: HashMap<Vec<u8>, Vec<TxOutput>> = HashMap::new();
+        let mut spend_txo: HashMap<Vec<u8>, Vec<u128>> = HashMap::new();
+        let mut iter = self.iterator();
+
+        while let Some(block) = iter.next() {
+            for tx in block.get_transaction() {
+                let tx_id = tx.get_tx_id();
+               
+                for (out_idx, tx_out) in tx.get_tx_output().iter().enumerate() {
+                    if let Some(spent_outs) = spend_txo.get(&tx_id) {
+                        let mut spent = false;
+                        for spent_out in spent_outs {
+                            if *spent_out == out_idx as u128 {
+                                spent = true;
+                            }
+                        }
+                        if spent {
+                            continue;
+                        }
+                    }
+                    if tx_out.can_be_unlocked_with(&public_key_hash) {
+                        unspend_txo.entry(tx_id.clone()).or_insert(vec![]).push(tx_out.clone());
+                    }
+                }
+                if !tx.is_coinbase() {
+                    for tx_in in tx.get_tx_input() {
+                        if tx_in.is_used_by(&public_key_hash) {
+                            let in_tx_id = tx_in.get_txid();
+                            spend_txo.entry(in_tx_id).or_insert(vec![]).push(tx_in.get_vout());
+                        }
+                    }
+                }
+            }
+        }
+
+        unspend_txo
+
     }
 
     pub fn get_balance(&self, public_key_hash: String) -> u128 {
