@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use hex::encode;
 use sled::Db;
 use crate::block::Block;
 use crate::transaction::Transaction;
+use crate::transaction::TxOutput;
 
 
 const BLOCKS_TREE: &str = "blocks_tree";
@@ -71,9 +76,33 @@ impl Blockchain {
     pub fn iterator(&self) -> BlockchainIterator{
         BlockchainIterator::new(self.db.clone(), self.last_block_hash.clone())
     }
+
+    pub fn get_balance(&self, public_key_hash: String) -> u128 {
+        let mut balance: u128 = 0;
+        let mut iter = self.iterator();
+
+        while let Some(block) = iter.next() {
+            for tx in block.get_transaction() {
+                for tx_out in tx.get_tx_output() {
+                    if tx_out.can_be_unlocked_with(&public_key_hash) {
+                        balance += tx_out.get_value();
+                    }
+                }
+                if !tx.is_coinbase() {
+                    for tx_in in tx.get_tx_input() {
+                        if tx_in.is_used_by(&public_key_hash) {
+                            balance -= tx_in.get_vout();
+                        }
+                    }
+                }
+            }
+        }
+
+        balance
+    }
 }
 
-
+#[derive(Clone)]
 pub struct BlockchainIterator{
     db: Db,
     current_hash: Vec<u8>

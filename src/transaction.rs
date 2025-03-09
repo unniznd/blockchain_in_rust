@@ -1,11 +1,12 @@
+use hex::encode;
 use serde::{Deserialize, Serialize};
 use crypto::{digest::Digest, sha2::Sha256};
 
-const SUBSIDY: i32 = 10;
+const SUBSIDY: u128 = 10;
 
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
-struct TxInput{
+pub struct TxInput{
     txid: Vec<u8>,
     vout: u128,
     signature: Vec<u8>,
@@ -21,27 +22,54 @@ impl TxInput {
             public_key: vec![]
         }
     }
+    pub fn get_txid(&self) -> Vec<u8> {
+        self.txid.clone()
+    }
+
+    pub fn get_vout(&self) -> u128 {
+        self.vout
+    }
+
+    pub fn get_public_key(&self) -> Vec<u8>{
+        self.public_key.clone()
+    }
+
+    pub fn is_used_by(&self, public_key_hash: &String) -> bool {
+        encode(self.public_key.clone()) == *public_key_hash
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-struct TxOutput{
-    value: i32,
-    public_key: String
+pub struct TxOutput{
+    value: u128,
+    public_key_hash: String
 }
 
 impl TxOutput{
-    pub fn new(value: i32, public_key: String) -> TxOutput {
+    pub fn new(value: u128, public_key_hash: String) -> TxOutput {
         TxOutput{
             value,
-            public_key
+            public_key_hash
         }
+    }
+
+    pub fn get_value(&self) -> u128 {
+        self.value
+    }
+
+    pub fn get_public_key_hash(&self) -> String {
+        self.public_key_hash.clone()
+    }
+
+    pub fn can_be_unlocked_with(&self, public_key_hash: &String) -> bool {
+        self.public_key_hash == *public_key_hash
     }
 }
 
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Transaction{
-    pub id: Vec<u8>,
+    id: Vec<u8>,
     tx_input: Vec<TxInput>,
     tx_output: Vec<TxOutput>
 }
@@ -83,7 +111,23 @@ impl Transaction {
         result
     }
 
+    pub fn is_coinbase(&self) -> bool {
+        self.tx_input.len() == 1 &&  self.tx_input[0].public_key.len() == 0
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
         bincode::serialize(&self).unwrap()
+    }
+
+    pub fn get_tx_output(&self) -> Vec<TxOutput> {
+        self.tx_output.clone()
+    }
+
+    pub fn get_tx_input(&self) -> Vec<TxInput> {
+        self.tx_input.clone()
+    }
+
+    pub fn get_tx_id(&self) -> Vec<u8> {
+        self.id.clone()
     }
 }

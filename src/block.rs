@@ -84,4 +84,8 @@ impl Block {
     pub fn get_timestamp(&self) -> u128 {
         self.timestamp
     }
+
+    pub fn get_transaction(&self) -> Vec<Transaction> {
+        self.transactions.clone()
+    }
 }
