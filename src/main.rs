@@ -21,10 +21,10 @@ fn main() {
         "Bob".to_string()
     );
 
-    let tx_output1 = TxOutput::new(5, "Alice".to_string());
-    let tx_output2 = TxOutput::new(5, "Bob".to_string());
+    let tx_output1 = TxOutput::new(10, "Alice".to_string());
+    // let tx_output2 = TxOutput::new(0, "Bob".to_string());
 
-    let tx = Transaction::new(vec![tx_input], vec![tx_output1, tx_output2]);
+    let tx = Transaction::new(vec![tx_input], vec![tx_output1]);
 
     blockchain.add_block(vec![tx]);
 

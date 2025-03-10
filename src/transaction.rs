@@ -117,7 +117,7 @@ impl Transaction {
         let total_output = self.tx_output.iter().fold(0, |acc, x| acc + x.value);
 
         for tx_in in tx_input.iter() {
-            if unspend_txo.get(&tx_in.txid).is_none() {
+            if unspend_txo.get(&tx_in.get_txid()).is_none() {
                 return false;
             }
             let tx_out = unspend_txo.get(&tx_in.txid).unwrap();
