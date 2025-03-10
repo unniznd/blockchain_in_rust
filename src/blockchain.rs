@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use sled::Db;
 use crate::block::Block;
 use crate::transaction::Transaction;
@@ -29,7 +28,7 @@ impl Blockchain {
             let blocknumber: u128 = 1;
             let alice = String::from("Alice");
             let bob = String::from("Bob");
-            let tx = Transaction::new_coinbase_tx(vec![alice, bob.clone(), bob]);
+            let tx = Transaction::new_coinbase_tx(vec![alice, bob]);
             let transactions = vec![tx];
             let previous_hash = vec![];
 

@@ -1,4 +1,3 @@
-use hex::encode;
 use serde::{Deserialize, Serialize};
 use crypto::{digest::Digest, sha2::Sha256};
 
