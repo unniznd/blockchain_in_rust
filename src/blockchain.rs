@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use sled::Db;
 use crate::block::Block;
 use crate::transaction::Transaction;
-use crate::transaction::TxOutput;
 
 
 const BLOCKS_TREE: &str = "blocks_tree";
@@ -50,6 +49,18 @@ impl Blockchain {
     }
 
     pub fn add_block(&mut self, transactions: Vec<Transaction>) {
+        for tx in transactions.iter() {
+            let public_key_hash = tx.get_public_key_hash();
+            if public_key_hash.is_none() {
+                panic!("Invalid transaction");
+            }
+            let public_key_hash = public_key_hash.unwrap();
+            let (balance, unspend_txo) = self.find_utxo(public_key_hash);
+            if !tx.validate(unspend_txo, balance) {
+                panic!("Invalid transaction");
+            }
+        }
+
         let blocks_tree = self.db.open_tree(BLOCKS_TREE).unwrap();
         let last_block_hash = blocks_tree.get(LAST_BLOCK_HASH).unwrap().unwrap().to_vec();
         let last_block = blocks_tree.get(last_block_hash).unwrap().unwrap().to_vec();
@@ -74,29 +85,28 @@ impl Blockchain {
         BlockchainIterator::new(self.db.clone(), self.last_block_hash.clone())
     }
 
-    pub fn find_utxo(&self, public_key_hash: String) -> HashMap<Vec<u8>, Vec<TxOutput>> {
-        let mut unspend_txo: HashMap<Vec<u8>, Vec<TxOutput>> = HashMap::new();
+    pub fn find_utxo(&self, public_key_hash: String) -> (u128,HashMap<Vec<u8>, Vec<(u128, u128)>> ){
+        let mut unspend_txo: HashMap<Vec<u8>,  Vec<(u128, u128)>> = HashMap::new();
         let mut spend_txo: HashMap<Vec<u8>, Vec<u128>> = HashMap::new();
         let mut iter = self.iterator();
+        let mut balance = 0;
 
         while let Some(block) = iter.next() {
             for tx in block.get_transaction() {
                 let tx_id = tx.get_tx_id();
                
-                for (out_idx, tx_out) in tx.get_tx_output().iter().enumerate() {
+        'outer: for (out_idx, tx_out) in tx.get_tx_output().iter().enumerate() {
                     if let Some(spent_outs) = spend_txo.get(&tx_id) {
-                        let mut spent = false;
                         for spent_out in spent_outs {
                             if *spent_out == out_idx as u128 {
-                                spent = true;
+                                continue 'outer;
                             }
-                        }
-                        if spent {
-                            continue;
                         }
                     }
                     if tx_out.can_be_unlocked_with(&public_key_hash) {
-                        unspend_txo.entry(tx_id.clone()).or_insert(vec![]).push(tx_out.clone());
+                        balance += tx_out.get_value();
+                        unspend_txo.entry(tx_id.clone()).or_insert(vec![])
+                                   .push((out_idx as u128, tx_out.get_value()));
                     }
                 }
                 if !tx.is_coinbase() {
@@ -110,17 +120,27 @@ impl Blockchain {
             }
         }
 
-        unspend_txo
+        (balance, unspend_txo)
 
     }
 
     pub fn get_balance(&self, public_key_hash: String) -> u128 {
         let mut balance: u128 = 0;
+        let mut spend_txo: HashMap<Vec<u8>, Vec<u128>> = HashMap::new();
         let mut iter = self.iterator();
 
         while let Some(block) = iter.next() {
             for tx in block.get_transaction() {
-                for tx_out in tx.get_tx_output() {
+                let tx_id = tx.get_tx_id();
+               
+        'outer: for (out_idx, tx_out) in tx.get_tx_output().iter().enumerate() {
+                    if let Some(spent_outs) = spend_txo.get(&tx_id) {
+                        for spent_out in spent_outs {
+                            if *spent_out == out_idx as u128 {
+                                continue 'outer;
+                            }
+                        }
+                    }
                     if tx_out.can_be_unlocked_with(&public_key_hash) {
                         balance += tx_out.get_value();
                     }
@@ -128,7 +148,8 @@ impl Blockchain {
                 if !tx.is_coinbase() {
                     for tx_in in tx.get_tx_input() {
                         if tx_in.is_used_by(&public_key_hash) {
-                            balance -= tx_in.get_vout();
+                            let in_tx_id = tx_in.get_txid();
+                            spend_txo.entry(in_tx_id).or_insert(vec![]).push(tx_in.get_vout());
                         }
                     }
                 }

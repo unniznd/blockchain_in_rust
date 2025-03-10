@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use crypto::{digest::Digest, sha2::Sha256};
 
@@ -29,8 +31,12 @@ impl TxInput {
         self.vout
     }
 
-    pub fn get_public_key(&self) -> String {
+    pub fn _get_public_key(&self) -> String {
         self.public_key.clone()
+    }
+
+    pub fn verify_signature(&self) -> bool {
+        self.signature.len() == 0
     }
 
     pub fn is_used_by(&self, public_key_hash: &String) -> bool {
@@ -56,7 +62,7 @@ impl TxOutput{
         self.value
     }
 
-    pub fn get_public_key_hash(&self) -> String {
+    pub fn _get_public_key_hash(&self) -> String {
         self.public_key_hash.clone()
     }
 
@@ -74,6 +80,17 @@ pub struct Transaction{
 }
 
 impl Transaction {
+    pub fn new(tx_input: Vec<TxInput>, tx_output: Vec<TxOutput>) -> Transaction {
+        let mut tx = Transaction{
+            id: vec![],
+            tx_input,
+            tx_output
+        };
+
+        tx.id = tx.hash();
+
+        tx
+    }
     pub fn new_coinbase_tx(to: Vec<String>) -> Transaction {
 
         let mut tx_output = Vec::new();
@@ -92,6 +109,42 @@ impl Transaction {
         tx.id = tx.hash();
 
         tx
+    }
+
+    pub fn validate(&self, unspend_txo: HashMap<Vec<u8>, Vec<(u128, u128)>>, balance:u128) -> bool{
+        let tx_input = self.tx_input.clone();
+        let mut total_input = 0;
+        let total_output = self.tx_output.iter().fold(0, |acc, x| acc + x.value);
+
+        for tx_in in tx_input.iter() {
+            if unspend_txo.get(&tx_in.txid).is_none() {
+                return false;
+            }
+            let tx_out = unspend_txo.get(&tx_in.txid).unwrap();
+            let mut spendable = false;
+            for (_idx, out) in tx_out.iter().enumerate() {
+                if out.0 == tx_in.vout {
+                    spendable = true;
+                    total_input += out.1;
+                    break;
+                }
+            }
+            if !spendable {
+                return false;
+            }
+
+            if tx_in.verify_signature() == false {
+                return false;
+            } 
+        }
+        if total_input < balance {
+            return false;
+        }
+        if total_input != total_output {
+            return false;
+        }
+
+        true
     }
 
     pub fn hash(&self) -> Vec<u8> {
@@ -129,4 +182,16 @@ impl Transaction {
     pub fn get_tx_id(&self) -> Vec<u8> {
         self.id.clone()
     }
+
+    pub fn get_public_key_hash(&self) -> Option<String> {
+        let mut previous_hash = self.tx_input[0].public_key.clone();
+        let len =  self.tx_input.len();
+        for i in 1..len{
+            if previous_hash != self.tx_input[i].public_key {
+                return None;
+            }   
+            previous_hash = self.tx_input[i].public_key.clone();
+        }
+        Some(previous_hash)
+    } 
 }
